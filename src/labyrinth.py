@@ -1,6 +1,5 @@
 import random
 import bpy
-import math
 
 
 class Point:
@@ -40,13 +39,14 @@ class Asylum:
         self.size = size
         self.matrix =  [[1 for x in range(size)] for x in range(size)]
               
-    def move(self, point, length):
+    def move(self, point, length, setBorderPoint = True):
         for i in range(length):
             if(point.isInside(self.size)):
                 self.matrix[point.posx] [point.posy] = 0
                 point.move(1)
                 if(point.isInBorder(self.size)):
-                    self.matrix[point.posx] [point.posy] = 0
+                    if(setBorderPoint):
+                        self.matrix[point.posx] [point.posy] = 0
                     return
 
     def isInside(self, point):
@@ -56,20 +56,36 @@ class Asylum:
         return point.isInBorder(self.size)
 
     def isSelected(self, point):
-        return self.matrix[point.posx] [point.posy] == 0
+        return self.isSelectedXY(point.posx,point.posy)
+
+    def count(self):
+        count = 0
+        for y in range(self.size):
+            for x in range(self.size):
+                if self.isSelectedXY(x, y):
+                    count += 1
+        return count
     
+
+    def isSelectedXY(self, x, y):
+        return self.matrix[x][y] == 0
+
     def __str__(self):
         ret = ""
         for y in range(self.size):
             for x in range(self.size):
-                ret += "%d " % self.matrix [x] [y]
+                if self.isSelectedXY(x, y):
+                    ret += "x "
+                else:  
+                    ret += "  "
             ret += "\n" 
         return ret
 
     def createBlenderObjects(self):
         for y in range(self.size):
+            print("Create row %d" % y)
             for x in range(self.size):
-                if self.matrix[x] [y] == 0:
+                if self.isSelectedXY(x, y):
                     createBase(x,y)
                 for direction in range(2):
                     p = Point(x,y,direction)
@@ -103,27 +119,55 @@ def createSide(posx, posy, direction):
     bpy.ops.mesh.primitive_cube_add(radius=0.5, view_align=False, enter_editmode=False, location=(posx , posy, 0.5), rotation=(0.0, 0.0, 0.0), layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
     bpy.ops.transform.resize(value=(sizex, sizey, 1.0))
 
-# start Application
+def recursion(asylum, p, schrittweite, schrittweiteMin, timeToLive):
+    a.move(p, random.randint(schrittweiteMin,schrittweite), (timeToLive==0))
+    if a.isInBorder(p) or not(a.isInside(p)):
+        return p
+    if(timeToLive>0):
+        timeToLive-=1
+        if(timeToLive ==0):
+            return p
+    pcopy = Point(p.posx, p.posy, p.direction)
+    pcopy1 = Point(p.posx, p.posy, p.direction)
+    p.rotate(1)
+    pcopy.rotate(-1)
+    lst = [p, pcopy, pcopy1]
+    random.shuffle(lst)
+    # randomly start other recursion(s):
+    while len(lst)>1:
+        nextpoint = lst.pop()
+        if(random.randint(0,10)<2):
+            # randomly rotate to the other side or keep running straight:
+            recursion(asylum, nextpoint, schrittweite, schrittweiteMin, random.randint(1,4))
+    ausgang = recursion(asylum, lst.pop(), schrittweite, schrittweiteMin, timeToLive)
+    return ausgang
+
+# labyrinth erzeugen
 l = 40
+schrittweite = 7
+schrittweiteMin = 3
 a = Asylum(l)
-p = Point(int(l/2),0,1)
-schrittweite = 5
-random.seed()
-while a.isInside(p):
-    a.move(p, random.randint(2,schrittweite))
-    d = random.randint(0,1)
-    if(d == 1):
-        p.rotate(1)
+while True:
+    a = Asylum(l)
+    p = Point(int(l/2),0,1)
+    random.seed()
+    ausgang = recursion(a, p, schrittweite, schrittweiteMin, 0)
+    print (a)
+    count = a.count()
+    if(count >= 3*l):
+        if(ausgang.posy == 0):
+            print ("Ausgang zu nah am Eingang: %s ..." % ausgang)
+        else:
+            print ("Asylum accepted: %d" % count)
+            break;
     else:
-        p.rotate(-1)
-    if a.isInBorder(p):
-        break
-print (a)
+        print ("Asylum too primitive %d, repeat..." % count)
+#exit(0)
 
 # remove all
 for obj in bpy.data.objects:
     obj.select = True
 bpy.ops.object.delete() 
 
-# create bases:
+# blender objekte erzeugen:
 a.createBlenderObjects()
