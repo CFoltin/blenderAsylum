@@ -1,5 +1,22 @@
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+
 import random
+
 import bpy
+from mathutils import Vector, Matrix, Quaternion, Euler, Color
 
 
 class Point:
@@ -15,6 +32,9 @@ class Point:
             self.posx -= length
         if self.direction % 4 == 3:
             self.posy -= length
+            
+    def copy(self):
+        return Point(self.posx, self.posy, self.direction)
     
     def rotate(self, deltadirection):
         self.direction += deltadirection
@@ -95,9 +115,29 @@ class Asylum:
                         createSide(x, y, direction)
                         
 
+def createBlock(posx, posy, colorr, colorg, colorb):
+    bpy.ops.mesh.primitive_cube_add(radius=0.3, view_align=False, enter_editmode=False, location=(posx, posy, 0.3), layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+    cube = bpy.context.object
+    mat = bpy.data.materials.new("PKHG")
+    mat.diffuse_color = (colorr, colorg, colorb)
+    cube.active_material = mat
+    return cube
+
+
 def createBase(posx, posy):
     bpy.ops.mesh.primitive_cube_add(radius=0.5, view_align=False, enter_editmode=False, location=(posx, posy, 0.0), layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
     bpy.ops.transform.resize(value=(1.0, 1.0, 0.1))
+    return bpy.context.object
+
+def createLamp(eingang):
+    bpy.ops.object.lamp_add(view_align=False, location=(eingang.posx, eingang.posy, 0.8), radius=1.0, type='POINT', rotation=Euler((0.0, 0.0, 0.0), 'XYZ'), layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+    return bpy.context.object
+    
+def createCamera(eingang):
+    bpy.ops.object.camera_add(view_align=True, enter_editmode=False, location=(eingang.posx, eingang.posy, 0.9), rotation=Euler((3.1415/2, 0.0, 0.0), 'XYZ'), layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+    bpy.ops.transform.resize(value=(0.1, 0.1, 0.1))
+    return bpy.context.object
+    
 
 def createSide(posx, posy, direction):
     sizex = 1.0
@@ -142,21 +182,25 @@ def recursion(asylum, p, schrittweite, schrittweiteMin, timeToLive):
     ausgang = recursion(asylum, lst.pop(), schrittweite, schrittweiteMin, timeToLive)
     return ausgang
 
-# labyrinth erzeugen
-l = 40
-schrittweite = 7
+# create asylum
+l = 10
+schrittweite = 5
 schrittweiteMin = 3
 a = Asylum(l)
+
 while True:
     a = Asylum(l)
-    p = Point(int(l/2),0,1)
+    global eingang
+    eingang = Point(int(l/2),0,1)
+    p  = eingang.copy()
     random.seed()
+    global ausgang 
     ausgang = recursion(a, p, schrittweite, schrittweiteMin, 0)
     print (a)
     count = a.count()
     if(count >= 3*l):
         if(ausgang.posy == 0):
-            print ("Ausgang zu nah am Eingang: %s ..." % ausgang)
+            print ("Exit too close to entrance: %s ..." % ausgang)
         else:
             print ("Asylum accepted: %d" % count)
             break;
@@ -165,9 +209,31 @@ while True:
 #exit(0)
 
 # remove all
+playerAlreadyPresent = False
 for obj in bpy.data.objects:
-    obj.select = True
+    # retain the player, as it contains the player's logic.
+    if obj.name == "spieler":
+        obj.select = False
+        playerAlreadyPresent = True
+        startBlock = obj
+    else:
+        obj.select = True
 bpy.ops.object.delete() 
 
-# blender objekte erzeugen:
+# create blender objects:
 a.createBlenderObjects()
+# create player, lamp and camera combo
+if playerAlreadyPresent == False:
+        startBlock = createBlock(eingang.posx, eingang.posy, 0.0, 0.0, 1.0)
+        startBlock.name = "spieler"
+#bpy.context.scene.objects.active = startBlock
+#bpy.ops.transform.translate(value=(0.0, 0.0, 1.0))
+startBlock.location = (eingang.posx, eingang.posy, 0.3)
+startLampe = createLamp(eingang)
+startCamera = createCamera(eingang)
+bpy.context.scene.objects.active = startBlock
+startLampe.select = True
+startCamera.select = True
+bpy.ops.object.parent_set(keep_transform=False, xmirror=False, type='OBJECT')
+# exit:
+createBlock(ausgang.posx, ausgang.posy, 1.0, 0.0, 0.0)
