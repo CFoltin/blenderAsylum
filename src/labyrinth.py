@@ -208,14 +208,24 @@ while True:
         print ("Asylum too primitive %d, repeat..." % count)
 #exit(0)
 
+# change scene
+bpy.context.screen.scene=bpy.data.scenes['Scene']
+
 # remove all
 playerAlreadyPresent = False
 for obj in bpy.data.objects:
     # retain the player, as it contains the player's logic.
-    if obj.name == "spieler":
+    if obj.name == "spieler" or obj.name == "Lampe" or obj.name == "Kamera" or obj.name == "Ziel":
         obj.select = False
         playerAlreadyPresent = True
-        startBlock = obj
+        if obj.name == "spieler":
+            startBlock = obj
+        if obj.name == "Lampe":
+            startLampe = obj
+        if obj.name == "Kamera":
+            startCamera = obj
+        if obj.name == "Ziel":
+            endBlock = obj
     else:
         obj.select = True
 bpy.ops.object.delete() 
@@ -224,16 +234,27 @@ bpy.ops.object.delete()
 a.createBlenderObjects()
 # create player, lamp and camera combo
 if playerAlreadyPresent == False:
-        startBlock = createBlock(eingang.posx, eingang.posy, 0.0, 0.0, 1.0)
-        startBlock.name = "spieler"
+    startBlock = createBlock(eingang.posx, eingang.posy, 0.0, 0.0, 1.0)
+    startBlock.name = "spieler"
+    startLampe = createLamp(eingang)
+    startLampe.name = "Lampe"
+    startCamera = createCamera(eingang)
+    startCamera.name = "Kamera"
+    # exit:
+    endBlock = createBlock(ausgang.posx, ausgang.posy, 1.0, 0.0, 0.0)
+    endBlock.name = "Ziel"
+# enable blind block for storage
+startBlockHidden = createBlock(eingang.posx, eingang.posy, 0.0, 0.0, 1.0)
+startBlockHidden.name = "Ursprung"
+startBlockHidden.hide = True
+startBlockHidden.location = (eingang.posx, eingang.posy, -1.0)
 #bpy.context.scene.objects.active = startBlock
 #bpy.ops.transform.translate(value=(0.0, 0.0, 1.0))
 startBlock.location = (eingang.posx, eingang.posy, 0.3)
-startLampe = createLamp(eingang)
-startCamera = createCamera(eingang)
+startLampe.location = (eingang.posx, eingang.posy, 0.8)
+startCamera.location = (eingang.posx, eingang.posy, 0.9)
+endBlock.location = (ausgang.posx, ausgang.posy, 0.3)
 bpy.context.scene.objects.active = startBlock
 startLampe.select = True
 startCamera.select = True
 bpy.ops.object.parent_set(keep_transform=False, xmirror=False, type='OBJECT')
-# exit:
-createBlock(ausgang.posx, ausgang.posy, 1.0, 0.0, 0.0)
