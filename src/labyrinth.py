@@ -183,7 +183,7 @@ def recursion(asylum, p, schrittweite, schrittweiteMin, timeToLive):
     return ausgang
 
 # create asylum
-l = 10
+l = 30
 schrittweite = 5
 schrittweiteMin = 3
 a = Asylum(l)
